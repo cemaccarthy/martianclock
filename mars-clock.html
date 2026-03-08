@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mars Time (MTC)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&family=Rajdhani:wght@300;400&display=swap');
+
+  :root {
+    --bg: #000000;
+    --fg: #ffb300;
+    --fg-dim: #4a3000;
+    --fg-glow: rgba(255, 160, 0, 0.45);
+    --fg-glow2: rgba(255, 200, 80, 0.2);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255,160,0,0.012) 2px,
+      rgba(255,160,0,0.012) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  .label-top {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.35em;
+    font-size: 1.5rem;
+    color: #ffffff;
+    text-shadow: 0 0 18px rgba(255,180,0,0.7), 0 0 40px rgba(255,140,0,0.35);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    text-align: center;
+  }
+
+  .label-sub {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 300;
+    letter-spacing: 0.3em;
+    font-size: 0.75rem;
+    color: rgba(255, 179, 0, 0.5);
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  /* ── TOGGLE ── */
+  .toggle-wrap {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--fg-dim);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--fg-dim);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0.4rem 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .toggle-btn.active {
+    background: var(--fg-dim);
+    color: var(--fg);
+    text-shadow: 0 0 8px var(--fg-glow);
+  }
+
+  .toggle-btn:hover:not(.active) { color: var(--fg); }
+
+  .divider-v {
+    width: 1px;
+    align-self: stretch;
+    background: var(--fg-dim);
+  }
+
+  /* ── CLOCK FACE ── */
+  #clock-analog {
+    width: 320px;
+    height: 320px;
+  }
+
+  #clock-analog svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 22px var(--fg-glow)) drop-shadow(0 0 6px var(--fg-glow2));
+  }
+
+  /* ── DIGITAL DISPLAY ── */
+  #clock-digital {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .seg-row-all {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .seg-digit {
+    width: 44px;
+    height: 78px;
+    position: relative;
+  }
+
+  .seg {
+    position: absolute;
+    background: var(--fg-dim);
+    border-radius: 2px;
+    transition: background 0.05s, box-shadow 0.05s;
+  }
+
+  .seg.on {
+    background: var(--fg);
+    box-shadow: 0 0 10px var(--fg), 0 0 24px var(--fg-glow), 0 0 4px rgba(255,255,255,0.5);
+  }
+
+  .seg-a { top: 2px;   left: 6px;  width: 32px; height: 5px; }
+  .seg-g { top: 36px;  left: 6px;  width: 32px; height: 5px; }
+  .seg-d { top: 70px;  left: 6px;  width: 32px; height: 5px; }
+  .seg-f { top: 6px;   left: 2px;  width: 5px;  height: 28px; }
+  .seg-b { top: 6px;   right: 2px; width: 5px;  height: 28px; }
+  .seg-e { top: 42px;  left: 2px;  width: 5px;  height: 28px; }
+  .seg-c { top: 42px;  right: 2px; width: 5px;  height: 28px; }
+
+  .seg-colon {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-self: center;
+    margin: 0 3px;
+    margin-bottom: 4px;
+  }
+
+  .seg-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--fg);
+    box-shadow: 0 0 8px var(--fg), 0 0 16px var(--fg-glow);
+  }
+
+  .dig-label-row {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    color: rgba(255, 179, 0, 0.35);
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    position: fixed;
+    bottom: 1.4rem;
+    font-size: 0.95rem;
+    color: #ffffff;
+    letter-spacing: 0.12em;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 400;
+    text-shadow: 0 0 14px rgba(255,180,0,0.55);
+  }
+
+  /* ── INFO ── */
+  .info-line {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    color: rgba(255, 179, 0, 0.28);
+    text-align: center;
+    margin-top: -0.5rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="label-top">Mars Time (MTC)</div>
+<div class="label-sub">Coordinated Mars Time</div>
+
+<div class="container">
+
+  <div class="toggle-wrap">
+    <button class="toggle-btn active" id="btn-analog" onclick="switchMode('analog')">Analog</button>
+    <div class="divider-v"></div>
+    <button class="toggle-btn" id="btn-digital" onclick="switchMode('digital')">Digital</button>
+  </div>
+
+  <!-- ANALOG -->
+  <div id="clock-analog">
+    <svg viewBox="0 0 320 320" id="svgClock">
+      <circle cx="160" cy="160" r="155" fill="none" stroke="#2a1800" stroke-width="1"/>
+      <circle cx="160" cy="160" r="148" fill="none" stroke="#ffb300" stroke-width="0.8" opacity="0.25"/>
+      <g id="tickMarks"></g>
+      <g id="hourNumerals"></g>
+      <line id="hand-hour"   x1="160" y1="160" x2="160" y2="90" stroke="#ffb300" stroke-width="3.5" stroke-linecap="round" style="filter:drop-shadow(0 0 7px #ffb300)"/>
+      <line id="hand-minute" x1="160" y1="160" x2="160" y2="60" stroke="#ffb300" stroke-width="2"   stroke-linecap="round" style="filter:drop-shadow(0 0 5px #ffb300)"/>
+      <line id="hand-second" x1="160" y1="175" x2="160" y2="50" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" style="filter:drop-shadow(0 0 6px #fff8e1)"/>
+      <circle cx="160" cy="160" r="5" fill="#ffb300" style="filter:drop-shadow(0 0 8px #ffb300)"/>
+      <circle cx="160" cy="160" r="2" fill="#000"/>
+    </svg>
+  </div>
+
+  <!-- DIGITAL: unified H:MM:SS row -->
+  <div id="clock-digital">
+    <div class="seg-row-all" id="seg-all-row"></div>
+    <div class="dig-label-row">hours &nbsp;·&nbsp; minutes &nbsp;·&nbsp; seconds</div>
+  </div>
+
+  <div class="info-line" id="infoLine">0:00:00 decimal</div>
+
+</div>
+
+<div class="footer">created by Christopher MacCarthy</div>
+
+<script>
+// ─── 7-SEGMENT PATTERNS ──────────────────────────────────────────
+const SEG_MAP = {
+  '0':[1,1,1,1,1,1,0], '1':[0,1,1,0,0,0,0], '2':[1,1,0,1,1,0,1],
+  '3':[1,1,1,1,0,0,1], '4':[0,1,1,0,0,1,1], '5':[1,0,1,1,0,1,1],
+  '6':[1,0,1,1,1,1,1], '7':[1,1,1,0,0,0,0], '8':[1,1,1,1,1,1,1],
+  '9':[1,1,1,1,0,1,1],
+};
+
+function makeDigit() {
+  const d = document.createElement('div');
+  d.className = 'seg-digit';
+  ['a','b','c','d','e','f','g'].forEach(s => {
+    const el = document.createElement('div');
+    el.className = `seg seg-${s}`;
+    d.appendChild(el);
+  });
+  return d;
+}
+
+function makeColon() {
+  const c = document.createElement('div');
+  c.className = 'seg-colon';
+  c.innerHTML = '<div class="seg-dot"></div><div class="seg-dot"></div>';
+  return c;
+}
+
+function setDigit(el, ch) {
+  const pattern = SEG_MAP[ch] || [0,0,0,0,0,0,0];
+  ['a','b','c','d','e','f','g'].forEach((n,i) => {
+    el.querySelector(`.seg-${n}`).classList.toggle('on', !!pattern[i]);
+  });
+}
+
+// Build: [H] : [M][M] : [S][S]
+const row = document.getElementById('seg-all-row');
+const dH = [], dM = [], dS = [];
+
+const hd = makeDigit(); row.appendChild(hd); dH.push(hd);
+row.appendChild(makeColon());
+for (let i = 0; i < 2; i++) { const d = makeDigit(); row.appendChild(d); dM.push(d); }
+row.appendChild(makeColon());
+for (let i = 0; i < 2; i++) { const d = makeDigit(); row.appendChild(d); dS.push(d); }
+
+function writeDigits(els, num, places) {
+  const s = String(num).padStart(places, '0');
+  els.forEach((el, i) => setDigit(el, s[i] || '0'));
+}
+
+// ─── ANALOG SETUP ────────────────────────────────────────────────
+const NS = 'http://www.w3.org/2000/svg';
+const cx = 160, cy = 160, R = 148;
+
+function svgEl(tag, attrs) {
+  const el = document.createElementNS(NS, tag);
+  for (const [k,v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+
+const tickG = document.getElementById('tickMarks');
+for (let i = 0; i < 100; i++) {
+  const angle = (i / 100) * 2 * Math.PI - Math.PI / 2;
+  const isMajor = i % 10 === 0;
+  const r1 = isMajor ? R - 18 : R - 9;
+  tickG.appendChild(svgEl('line', {
+    x1: cx + r1 * Math.cos(angle), y1: cy + r1 * Math.sin(angle),
+    x2: cx + (R-2) * Math.cos(angle), y2: cy + (R-2) * Math.sin(angle),
+    stroke: isMajor ? '#ffb300' : '#3a2200',
+    'stroke-width': isMajor ? '1.5' : '0.8',
+    opacity: isMajor ? '0.85' : '0.6'
+  }));
+}
+
+const numG = document.getElementById('hourNumerals');
+for (let h = 1; h <= 10; h++) {
+  const angle = (h / 10) * 2 * Math.PI - Math.PI / 2;
+  const t = svgEl('text', {
+    x: cx + (R-32) * Math.cos(angle), y: cy + (R-32) * Math.sin(angle),
+    'text-anchor': 'middle', 'dominant-baseline': 'central',
+    fill: '#ffb300', 'font-family': 'Orbitron, monospace',
+    'font-size': '13', opacity: '0.8'
+  });
+  t.textContent = String(h);
+  numG.appendChild(t);
+}
+
+// ─── TICK ────────────────────────────────────────────────────────
+function rotateHand(id, deg) {
+  document.getElementById(id).setAttribute('transform', `rotate(${deg}, 160, 160)`);
+}
+
+function tick() {
+  const now = new Date();
+  const midnight = new Date(now); midnight.setHours(0,0,0,0);
+  const frac = (now - midnight) / 86400000;
+  const decH = frac * 10;
+  const decM = (decH % 1) * 100;
+  const decS = (decM % 1) * 100;
+
+  rotateHand('hand-hour',   (decH % 10)   / 10  * 360);
+  rotateHand('hand-minute', (decM % 100)  / 100 * 360);
+  rotateHand('hand-second', (decS % 100)  / 100 * 360);
+
+  const hh = Math.floor(decH) % 10;
+  const mm = Math.floor(decM);
+  const ss = Math.floor(decS);
+
+  writeDigits(dH, hh, 1);
+  writeDigits(dM, mm, 2);
+  writeDigits(dS, ss, 2);
+
+  document.getElementById('infoLine').textContent =
+    `${hh}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')} decimal`;
+}
+
+tick();
+setInterval(tick, 100);
+
+// ─── MODE SWITCH ─────────────────────────────────────────────────
+function switchMode(mode) {
+  document.getElementById('btn-analog').classList.toggle('active', mode === 'analog');
+  document.getElementById('btn-digital').classList.toggle('active', mode === 'digital');
+  document.getElementById('clock-analog').style.display  = mode === 'analog'  ? 'block' : 'none';
+  document.getElementById('clock-digital').style.display = mode === 'digital' ? 'flex'  : 'none';
+}
+</script>
+</body>
+</html>
